@@ -153,8 +153,6 @@
     <ClInclude Include="GL4Lighting_freeglut.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="perpixel-shader.frag" />
-    <None Include="perpixel-shader.vert" />
     <None Include="simple.frag" />
     <None Include="simple.vert" />
     <None Include="simpleTrans.frag" />

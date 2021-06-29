@@ -4,6 +4,7 @@ out vec4 FragColor;
 in vec3 Normal;  
 in vec3 FragPos;  
 in vec4 MatColor;
+in vec3 vPos;
   
 uniform vec3 lightDirection; 
 uniform vec3 viewPos; 
@@ -15,7 +16,7 @@ void main()
     if(MatColor.w < 0.9) discard;
 
     // ambient
-    float ambientStrength = 0.1;
+    float ambientStrength = 0.2;
     vec3 ambient = ambientStrength * lightColor;
   	
     // diffuse 
@@ -25,12 +26,16 @@ void main()
     vec3 diffuse = diff * lightColor;
     
     // specular
-    float specularStrength = 0.5;
+    float specularStrength = 0.6;
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);  
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
     vec3 specular = specularStrength * spec * lightColor;  
         
+    //fog
+    float fogDistance = length(vPos);
+    float fogAmount = smoothstep(5.0f,50.0f,fogDistance);
+        
     vec4 result = (vec4(ambient,1.0) + vec4(diffuse,1.0) + vec4(specular,1.0)) * MatColor;
-    FragColor = result;
+    FragColor = mix(result,vec4(0.8, 0.9, 1, 1),fogAmount);
 } 

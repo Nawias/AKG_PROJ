@@ -26,12 +26,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="perpixel-shader.frag">
-      <Filter>Pliki źródłowe</Filter>
-    </None>
-    <None Include="perpixel-shader.vert">
-      <Filter>Pliki źródłowe</Filter>
-    </None>
     <None Include="simple.vert">
       <Filter>Pliki źródłowe</Filter>
     </None>

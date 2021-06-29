@@ -69,7 +69,7 @@ GLuint WindshieldVAO;
 // Program shaderowy:
 GLuint OpaqueShader, TransparentShader, MinimapShader;
 // Położenie źródła światła:
-glm::vec3 LightDirection = { -0.2f, -1.0f, -0.3f };
+glm::vec3 LightDirection = { -0.4f, -1.0f, -0.6f };
 GLuint LightDirectionLocOpaque, LightDirectionLocTransparent;
 //Kolor źródła światła
 glm::vec3 LightColor = { 1.0f, 1.0f, 0.6f };
@@ -458,8 +458,10 @@ void OnIdle() {
 }
 unsigned int framecount = 0;
 void OnRender() {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+	glClearColor(0.8, 0.9, 1, 1);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_DEPTH_BUFFER_BIT);
 	// Wyliczenie i przekazanie macierzy:
 	MatV = camera.GetViewMatrix();
 	glBindVertexArray(VAO); 
