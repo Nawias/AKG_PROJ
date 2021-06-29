@@ -150,12 +150,14 @@
   <ItemGroup>
     <ClInclude Include="Anim8orExport.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="GL4Lighting_freeglut.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="perpixel-shader.frag" />
     <None Include="perpixel-shader.vert" />
     <None Include="simple.frag" />
     <None Include="simple.vert" />
+    <None Include="simpleTrans.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -45,6 +45,7 @@ using namespace std;
 // Dołączenie definicji struktury i obiektu 3D:
 #include "Anim8orExport.h"
 #include "city.c"
+#include "GL4Lighting_freeglut.h"
 
 // Tylko dla Visual Studio:
 #pragma comment(lib, "glew32.lib")
@@ -58,21 +59,22 @@ int window_width = 960, window_height = 600;
 Camera camera;
 
 // Macierz modelu, widoku i rzutowania:
-glm::mat4 MatM, MatV, MatP, MatMc1, MatMc2, MatMc3, MatMc4, MatMc5, MatMc6,MatMc7,MatMc8;
-GLuint MatMLoc, MatVLoc, MatMVPLoc;
+glm::mat4 MatM[9], MatV, MatP, MatWorld;
+bool WorldRotated = false;
+GLuint MatMLocOpaque, MatVLocOpaque, MatPLocOpaque, MatWorldLocOpaque, MatMLocTransparent, MatVLocTransparent, MatPLocTransparent, MatWorldLocTransparent;
 // Bufor wierzchołków do renderingu:
-GLuint CarVAO;
+GLuint VAO;
 GLuint WindshieldVAO;
 
 // Program shaderowy:
-GLuint ShaderProgram;
+GLuint OpaqueShader, TransparentShader, MinimapShader;
 // Położenie źródła światła:
-glm::vec3 LightPosition = { 5000.0f, 1000.0f, 2000.0f };
-GLuint LightPosLoc;
+glm::vec3 LightDirection = { -0.2f, -1.0f, -0.3f };
+GLuint LightDirectionLocOpaque, LightDirectionLocTransparent;
 //Kolor źródła światła
 glm::vec3 LightColor = { 1.0f, 1.0f, 0.6f };
-GLuint LightColorLoc;
-GLuint ViewPosLoc;
+GLuint LightColorLocOpaque, LightColorLocTransparent;
+GLuint ViewPosLocOpaque, ViewPosLocTransparent;
 
 
 // Wygenerowanie obiektu VAO na podstawie jednej siatki (mesh) obiektu Anim8or:
@@ -109,9 +111,9 @@ GLuint Anim8orMeshToVAO(Anim8orMesh* mesh) {
 	glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * mesh->nVertices, colors, GL_STATIC_DRAW);
 
 	// Przygotowanie VAO:
-	GLuint CarVAO;
-	glGenVertexArrays(1, &CarVAO);
-	glBindVertexArray(CarVAO);
+	GLuint VAO;
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
 	// Index 0 -> współrzędne wierzchołków:
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
@@ -131,7 +133,7 @@ GLuint Anim8orMeshToVAO(Anim8orMesh* mesh) {
 	glEnableVertexAttribArray(2);
 	glEnableVertexAttribArray(3);
 
-	return(CarVAO);
+	return(VAO);
 }
 
 // Sprawdzenie błędów linkowania:
@@ -183,43 +185,47 @@ string LoadTextFile(string fileName) {
 
 void InitScene() {
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	MatWorld = glm::mat4(1.0f);
 	// ustawienie modelu
-	MatM = glm::mat4(1.0f);
-	MatMc1 = glm::translate(MatM, glm::vec3(50.0f, 0.0f, 0.0f));
-	MatMc1 = glm::rotate(MatMc1, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	MatM[0] = glm::mat4(1.0f);
+	MatM[1] = glm::translate(MatM[0], glm::vec3(50.0f, 0.0f, 0.0f));
+	MatM[1] *= glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
+	MatM[2] = glm::translate(MatM[0], glm::vec3(-50.0f, 0.0f, 0.0f));
+	MatM[2] *= glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	MatMc2 = glm::translate(MatM, glm::vec3(-50.0f, 0.0f, 0.0f));
-	MatMc2 = glm::rotate(MatMc2, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	MatM[3] = glm::translate(MatM[0], glm::vec3(0.0f, 0.0f, 50.0f));
+	MatM[3] *= glm::rotate(glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
+	MatM[4] = glm::translate(MatM[0], glm::vec3(0.0f, 0.0f, -50.0f));
+	MatM[4] *= glm::rotate(glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	MatMc3 = glm::translate(MatM, glm::vec3(0.0f, 0.0f, 50.0f));
-	MatMc3 = glm::rotate(MatMc3, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	MatM[5] = glm::translate(MatM[0], glm::vec3(-50.0f, 0.0f, -50.0f));
+	MatM[5] *= glm::rotate(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	MatMc4 = glm::translate(MatM, glm::vec3(0.0f, 0.0f, -50.0f));
-	MatMc4 = glm::rotate(MatMc4, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	MatM[6] = glm::translate(MatM[0], glm::vec3(50.0f, 0.0f, -50.0f));
+	MatM[6] *= glm::rotate(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	MatMc5 = glm::translate(MatM, glm::vec3(-50.0f, 0.0f, -50.0f));
-	MatMc5 = glm::rotate(MatMc5, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	MatM[7] = glm::translate(MatM[0], glm::vec3(-50.0f, 0.0f, 50.0f));
+	MatM[7] *= glm::rotate(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	MatMc6 = glm::translate(MatM, glm::vec3(50.0f, 0.0f, -50.0f));
-	MatMc6 = glm::rotate(MatMc6, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-	MatMc7 = glm::translate(MatM, glm::vec3(-50.0f, 0.0f, 50.0f));
-	MatMc7 = glm::rotate(MatMc7, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-	MatMc8 = glm::translate(MatM, glm::vec3(50.0f, 0.0f, 50.0f));
-	MatMc8 = glm::rotate(MatMc8, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	MatM[8] = glm::translate(MatM[0], glm::vec3(50.0f, 0.0f, 50.0f));
+	MatM[8] *= glm::rotate(glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	
 
 	// Przygotowanie kamery
 	camera = Camera(glm::vec3(0, 2, 0));
+	camera.MovementSpeed = 9.0f;
 	// Przytowanie VAO dla obiektu 3D:
-	CarVAO = Anim8orMeshToVAO(object_city.meshes[0]);
+	VAO = Anim8orMeshToVAO(object_city.meshes[0]);
 
+	MakeOpaqueShader();
+	MakeTransparentShader();
+}
+
+void MakeOpaqueShader()
+{
 	// Wczytanie kodu shaderów z plików:
 	string VertSource = LoadTextFile("simple.vert");
 	string FragSource = LoadTextFile("simple.frag");
@@ -242,26 +248,73 @@ void InitScene() {
 		exit(0);
 	}
 	// Utworzenie programu i połączenie:
-	ShaderProgram = glCreateProgram();
-	glAttachShader(ShaderProgram, fs);
-	glAttachShader(ShaderProgram, vs);
-	glLinkProgram(ShaderProgram);
+	OpaqueShader = glCreateProgram();
+	glAttachShader(OpaqueShader, fs);
+	glAttachShader(OpaqueShader, vs);
+	glLinkProgram(OpaqueShader);
 
-	if (!CheckLinkErrors(ShaderProgram)) {
+	if (!CheckLinkErrors(OpaqueShader)) {
 		cout << "Shader linking error!" << endl;
 		system("pause");
 		exit(0);
 	}
 
-	glUseProgram(ShaderProgram);
 	// Zapamiętanie lokalizacji macierzy na później:
-	MatMVPLoc = glGetUniformLocation(ShaderProgram, "MatMVP");
-	MatMLoc = glGetUniformLocation(ShaderProgram, "MatM");
-	MatVLoc = glGetUniformLocation(ShaderProgram, "MatV");
+	MatPLocOpaque = glGetUniformLocation(OpaqueShader, "MatP");
+	MatMLocOpaque = glGetUniformLocation(OpaqueShader, "MatM");
+	MatVLocOpaque = glGetUniformLocation(OpaqueShader, "MatV");
+	MatWorldLocOpaque = glGetUniformLocation(OpaqueShader, "MatWorld");
 	// Analogicznie położenie światła:
-	LightPosLoc = glGetUniformLocation(ShaderProgram, "lightPos");
-	ViewPosLoc = glGetUniformLocation(ShaderProgram, "viewPos");
-	LightColorLoc = glGetUniformLocation(ShaderProgram, "lightColor");
+	LightDirectionLocOpaque = glGetUniformLocation(OpaqueShader, "lightDirection");
+	ViewPosLocOpaque = glGetUniformLocation(OpaqueShader, "viewPos");
+	LightColorLocOpaque = glGetUniformLocation(OpaqueShader, "lightColor");
+}
+
+
+void MakeTransparentShader()
+{
+	// Wczytanie kodu shaderów z plików:
+	string VertSource = LoadTextFile("simple.vert");
+	string FragSource = LoadTextFile("simpleTrans.frag");
+	const char* src[1];
+
+	// Inicjalizacja shaderów:
+	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+	src[0] = VertSource.c_str();
+	glShaderSource(vs, 1, src, NULL);
+	glCompileShader(vs);
+
+	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+	src[0] = FragSource.c_str();
+	glShaderSource(fs, 1, src, NULL);
+	glCompileShader(fs);
+
+	if (!CheckCompileErrors(vs) || !CheckCompileErrors(fs)) {
+		cout << "Shader compile error!" << endl;
+		system("pause");
+		exit(0);
+	}
+	// Utworzenie programu i połączenie:
+	TransparentShader = glCreateProgram();
+	glAttachShader(TransparentShader, fs);
+	glAttachShader(TransparentShader, vs);
+	glLinkProgram(TransparentShader);
+
+	if (!CheckLinkErrors(TransparentShader)) {
+		cout << "Shader linking error!" << endl;
+		system("pause");
+		exit(0);
+	}
+
+	// Zapamiętanie lokalizacji macierzy na później:
+	MatPLocTransparent = glGetUniformLocation(TransparentShader, "MatP");
+	MatMLocTransparent = glGetUniformLocation(TransparentShader, "MatM");
+	MatVLocTransparent = glGetUniformLocation(TransparentShader, "MatV");
+	MatWorldLocTransparent = glGetUniformLocation(TransparentShader, "MatWorld");
+	// Analogicznie położenie światła:
+	LightDirectionLocTransparent = glGetUniformLocation(TransparentShader, "lightDirection");
+	ViewPosLocTransparent = glGetUniformLocation(TransparentShader, "viewPos");
+	LightColorLocTransparent = glGetUniformLocation(TransparentShader, "lightColor");
 }
 
 bool key_W = false;
@@ -336,6 +389,8 @@ void OnMouseMove(int x, int y) {
 
 void handleWorldBorders() {
 	glm::vec3 pos = camera.Position;
+
+	printf("Player was: x:%f y:%f z:%f yaw:%f\n", camera.Position.x, camera.Position.y, camera.Position.z, camera.Yaw);
 	float yaw = camera.Yaw;
 	if (pos.y > 50.0f)
 		pos.y = 5.0f;
@@ -343,37 +398,36 @@ void handleWorldBorders() {
 		pos.y = 1.0f;
 
 
-	if (pos.x >= 25) {
-		yaw += 90.0f;
-		float tmp = pos.x;
-		pos.x = -pos.z;
-		pos.z = tmp - 50;
-		LightPosition = glm::rotate(LightPosition,glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	} else if (pos.x < -25) {
-		yaw += 90.0f;
-		float tmp = pos.x;
-		pos.x = -pos.z;
-		pos.z = tmp + 50;
-		LightPosition = glm::rotate(LightPosition, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	if (pos.x > 25.0000f) {
+		WorldRotated = !WorldRotated;
+		float rotation = WorldRotated ? 90.0f : -90.0f;
+		MatWorld = glm::rotate(MatWorld, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		LightDirection = glm::rotate(LightDirection, glm::radians(-rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		pos.x -= 50.0f;
+	} else if (pos.x < -25.0000f) {
+		WorldRotated = !WorldRotated;
+		float rotation = WorldRotated ? 90.0f : -90.0f;
+		MatWorld = glm::rotate(MatWorld, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		LightDirection = glm::rotate(LightDirection, glm::radians(-rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		pos.x += 50.0f;
 	}
-	if (pos.z >= 25) {
-		yaw -= 90.0f;
-		float tmp = pos.z;
-		pos.z = -pos.x;
-		pos.x = tmp - 50;
-		LightPosition = glm::rotate(LightPosition,glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	} else if (pos.z < -25) {
-		yaw -= 90.0f;
-		float tmp = pos.z;
-		pos.z = -pos.x;
-		pos.x = tmp + 50;
-		LightPosition = glm::rotate(LightPosition,glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	if (pos.z > 25.0000f) {
+		WorldRotated = !WorldRotated;
+		float rotation = WorldRotated ? -90.0f : 90.0f;
+		MatWorld = glm::rotate(MatWorld, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		LightDirection = glm::rotate(LightDirection, glm::radians(-rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		pos.z -= 50.0f;
+	} else if (pos.z < -25.0000f) {
+		WorldRotated = !WorldRotated;
+		float rotation = WorldRotated ? -90.0f : 90.0f;
+		MatWorld = glm::rotate(MatWorld, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		LightDirection = glm::rotate(LightDirection, glm::radians(-rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		pos.z += 50.0f;
 	}
 
 	camera.Position = pos;
-	camera.Yaw = yaw;
 
-	printf("Player: x:%f y:%f z:%f yaw:%f\nLight: x:%f y:%f z:%f\n", camera.Position.x, camera.Position.y, camera.Position.z,camera.Yaw, LightPosition.x, LightPosition.y, LightPosition.z);
+	printf("Player is: x:%f y:%f z:%f yaw:%f\n\n", camera.Position.x, camera.Position.y, camera.Position.z,camera.Yaw);
 }
 
 void OnIdle() {
@@ -396,64 +450,63 @@ void OnIdle() {
 
 	}
 	// Copy for measuring the next frame:
+	CenterMousePointer();
 	last_time = now_time;
 	// Refresh frame:
 	glutPostRedisplay();
-	CenterMousePointer();
+	
 }
-
+unsigned int framecount = 0;
 void OnRender() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Wyliczenie i przekazanie macierzy:
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatM[0][0]);
-	glUniformMatrix4fv(MatVLoc, 1, GL_FALSE, &MatV[0][0]);
-	glm::mat4 MatMVP = MatP * camera.GetViewMatrix() * MatM;
-	glUniformMatrix4fv(MatMVPLoc, 1, GL_FALSE, &MatMVP[0][0]);
-	// Położenie źródła światła:
-	glUniform3fv(LightPosLoc, 1, &LightPosition[0]);
-	// Kolor źródła światła
-	glUniform3fv(LightColorLoc, 1, &LightColor[0]);
-
-	glUniform3fv(ViewPosLoc, 1, &(camera.Position)[0]);
-
-	glBindVertexArray(CarVAO);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatMc1[0][0]);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-	/**/
-
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatMc2[0][0]);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-	/**/
-
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatMc3[0][0]);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-
-	/**/
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatMc4[0][0]);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-
-	/**/
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatMc5[0][0]);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-
-	/**/
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatMc6[0][0]);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-
-	/**/
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatMc7[0][0]);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-
-	/**/
-	glUniformMatrix4fv(MatMLoc, 1, GL_FALSE, &MatMc8[0][0]);
-	glDrawElements(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices);
-
-
-
+	MatV = camera.GetViewMatrix();
+	glBindVertexArray(VAO); 
+	RenderFirstPass();
+	RenderTransparentPass();
+	printf("%u\n",++framecount);
+	printf("Player Drawn: x:%f y:%f z:%f yaw:%f\n", camera.Position.x, camera.Position.y, camera.Position.z, camera.Yaw);
 	glutSwapBuffers();
+}
+
+void RenderTransparentPass()
+{
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glUseProgram(TransparentShader);
+	glUniformMatrix4fv(MatWorldLocTransparent, 1, GL_FALSE, &MatWorld[0][0]);
+	glUniformMatrix4fv(MatMLocTransparent, 9, GL_FALSE, &MatM[0][0][0]);
+	glUniformMatrix4fv(MatVLocTransparent, 1, GL_FALSE, &MatV[0][0]);
+	glUniformMatrix4fv(MatPLocTransparent, 1, GL_FALSE, &MatP[0][0]);
+	// Położenie źródła światła:
+	glUniform3fv(LightDirectionLocTransparent, 1, &LightDirection[0]);
+	// Kolor źródła światła
+	glUniform3fv(LightColorLocTransparent, 1, &LightColor[0]);
+
+	glUniform3fv(ViewPosLocTransparent, 1, &(camera.Position)[0]);
+
+	glDrawElementsInstanced(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices, 9);
+	glDisable(GL_BLEND);
+}
+
+void RenderFirstPass()
+{
+	glUseProgram(OpaqueShader);
+	glUniformMatrix4fv(MatWorldLocOpaque, 1, GL_FALSE, &MatWorld[0][0]);
+	glUniformMatrix4fv(MatMLocOpaque, 9, GL_FALSE, &MatM[0][0][0]);
+	glUniformMatrix4fv(MatVLocOpaque, 1, GL_FALSE, &MatV[0][0]);
+	glUniformMatrix4fv(MatPLocOpaque, 1, GL_FALSE, &MatP[0][0]);
+	// Położenie źródła światła:
+	glUniform3fv(LightDirectionLocOpaque, 1, &LightDirection[0]);
+	// Kolor źródła światła
+	glUniform3fv(LightColorLocOpaque, 1, &LightColor[0]);
+
+	glUniform3fv(ViewPosLocOpaque, 1, &(camera.Position)[0]);
+
+	glDrawElementsInstanced(GL_TRIANGLES, object_city.meshes[0]->nIndices, GL_UNSIGNED_INT, object_city.meshes[0]->indices, 9);
+
 }
 
 void OnResize(int width, int height) {

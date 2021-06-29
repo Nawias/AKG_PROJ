@@ -38,12 +38,18 @@
     <None Include="simple.frag">
       <Filter>Pliki źródłowe</Filter>
     </None>
+    <None Include="simpleTrans.frag">
+      <Filter>Pliki źródłowe</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Anim8orExport.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
     <ClInclude Include="Camera.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="GL4Lighting_freeglut.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
   </ItemGroup>

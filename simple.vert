@@ -8,16 +8,17 @@ out vec3 FragPos;
 out vec3 Normal;
 out vec4 MatColor;
 
-uniform mat4 MatM;
+uniform mat4 MatM[9];
 uniform mat4 MatV;
-uniform mat4 MatMVP;
-
+uniform mat4 MatP;
+uniform mat4 MatWorld;
 void main()
 {
-    
+mat4 model = MatM[gl_InstanceID];
 
-    FragPos = vec3(MatM * vec4(aPos, 1.0));
-    Normal = mat3(transpose(inverse(MatM))) * aNormal;  
+    FragPos = vec3(model * vec4(aPos, 1.0));
+    Normal = mat3(transpose(inverse(model))) * aNormal;  
     MatColor = aColor;
-    gl_Position = MatMVP * vec4(FragPos, 1.0);
+    mat4 mvp = MatP * MatV * MatWorld;
+    gl_Position = mvp * vec4(FragPos, 1.0);
 }

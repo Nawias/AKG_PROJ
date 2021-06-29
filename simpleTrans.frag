@@ -12,7 +12,7 @@ uniform vec3 lightColor;
 void main()
 {
 
-    if(MatColor.w < 0.9) discard;
+    if(MatColor.w >= 0.9) discard;
 
     // ambient
     float ambientStrength = 0.1;
