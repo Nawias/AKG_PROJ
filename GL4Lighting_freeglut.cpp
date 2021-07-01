@@ -72,7 +72,7 @@ GLuint OpaqueShader, TransparentShader, MinimapShader;
 glm::vec3 LightDirection = { -0.4f, -1.0f, -0.6f };
 GLuint LightDirectionLocOpaque, LightDirectionLocTransparent;
 //Kolor źródła światła
-glm::vec3 LightColor = { 1.0f, 1.0f, 0.6f };
+glm::vec3 LightColor = { 1.0f, 1.08f, 1.1f };
 GLuint LightColorLocOpaque, LightColorLocTransparent;
 GLuint ViewPosLocOpaque, ViewPosLocTransparent;
 
@@ -215,7 +215,7 @@ void InitScene() {
 	
 
 	// Przygotowanie kamery
-	camera = Camera(glm::vec3(0, 2, 0));
+	camera = Camera(glm::vec3(-19, 2, -21));
 	camera.MovementSpeed = 9.0f;
 	// Przytowanie VAO dla obiektu 3D:
 	VAO = Anim8orMeshToVAO(object_city.meshes[0]);

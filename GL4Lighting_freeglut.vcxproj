@@ -143,9 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="car.c" />
     <ClCompile Include="GL4Lighting_freeglut.cpp" />
-    <ClCompile Include="wazon.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Anim8orExport.h" />
